@@ -17,7 +17,7 @@ const connection = mysql.createConnection({
 connection.connect(function (err) {
     if (err) throw err;
     console.log(colors.cyan("Welcome!" + connection.threadId));
-    //Call main function
+    //Call show table function
     showTable()
 });
 
@@ -44,7 +44,8 @@ function showTable() {
         console.log(table.toString());
 
         if (!successful) {
-            bamazon()
+            // call main function
+            bamazon();
         } else {
             console.log("Thanks for coming!")
         }
@@ -91,7 +92,6 @@ function bamazon() {
 
                     function (err, inventory) {
                         if (err) throw err;
-                        // Runs the prompt again, so the customer can continue shopping.
                         successful = true
                         showTable();
                         // ends connection
