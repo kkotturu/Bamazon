@@ -3,6 +3,7 @@ const mysql = require("mysql");
 const inquirer = require("inquirer");
 const colors = require('colors');
 const Table = require('cli-table');
+let successful = false;
 
 // Connection script
 const connection = mysql.createConnection({
@@ -17,12 +18,10 @@ connection.connect(function (err) {
     if (err) throw err;
     console.log(colors.cyan("Welcome!" + connection.threadId));
     //Call main function
-    bamazon();
-
+    showTable()
 });
 
-// Displays Inventory to select
-function bamazon() {
+function showTable() {
     connection.query('SELECT * FROM products', function (err, res) {
         if (err) throw err;
 
@@ -42,65 +41,74 @@ function bamazon() {
                 res[i].stock_quantity]
             );
         }
-
         console.log(table.toString());
 
-        // Prompt Customers Input
-        inquirer.prompt([
-            {
-                type: "number",
-                name: "id",
-                message: "Please enter the Product ID of the item that you would like to buy?".yellow
-            },
-            {
-                type: "number",
-                name: "quantity",
-                message: "How many would you like to buy?".yellow
-            },
-        ]).then(function (answer) {
+        if (!successful) {
+            bamazon()
+        } else {
+            console.log("Thanks for coming!")
+        }
+    })
+}
 
-            const quantity = answer.quantity;
-            const itemID = answer.id;
+// Displays Inventory to select
+function bamazon() {
+    // Prompt Customers Input
+    inquirer.prompt([
+        {
+            type: "number",
+            name: "id",
+            message: "Please enter the Product ID of the item that you would like to buy?".yellow
+        },
+        {
+            type: "number",
+            name: "quantity",
+            message: "How many would you like to buy?".yellow
+        },
+    ]).then(function (answer) {
 
-            connection.query('SELECT * FROM products WHERE id=' + itemID, function (err, selectedItem) {
-                if (err) throw err;
+        const quantity = answer.quantity;
+        const itemID = answer.id;
 
-                if ((selectedItem[0].stock_quantity - quantity) > 0) {
+        connection.query('SELECT * FROM products WHERE id=' + itemID, function (err, selectedItem) {
+            if (err) throw err;
 
-                    console.log("Quantity in Stock: ".green +
-                        selectedItem[0].stock_quantity + "\nOrder Quantity: ".green + quantity.yellow);
+            if ((selectedItem[0].stock_quantity - quantity) > 0) {
 
-                    console.log("Congratulations! Bamazon has suffiecient inventory of ".green +
-                        selectedItem[0].product_name.yellow);
+                console.log("Quantity in Stock: ".green +
+                    selectedItem[0].stock_quantity + "\nOrder Quantity: ".green + quantity.yellow);
 
-                    // Calculate total sale, and fix 2 decimal places
-                    console.log("Thank You for your purchase. Your order total will be ".green + "$".yellow +
-                        (answer.quantity * selectedItem[0].price).toFixed(2).yellow +
-                        "\nThank you for shopping at Bamazon!".magenta);
+                console.log("Congratulations! Bamazon has suffiecient inventory of ".green +
+                    selectedItem[0].product_name.yellow);
 
-                    // Query to remove the purchased item from inventory.                       
-                    connection.query('UPDATE products SET stock_quantity=? WHERE id=?', [selectedItem[0].stock_quantity - quantity, itemID],
+                // Calculate total sale, and fix 2 decimal places
+                console.log("Thank You for your purchase. Your order total will be ".green + "$".yellow +
+                    (answer.quantity * selectedItem[0].price).toFixed(2).yellow +
+                    "\nThank you for shopping at Bamazon!".magenta);
 
-                        function (err, inventory) {
-                            if (err) throw err;
-                            // Runs the prompt again, so the customer can continue shopping.
-                            bamazon();
-                            // ends connection
-                            // connection.end()
-                        });
+                // Query to remove the purchased item from inventory.                       
+                connection.query('UPDATE products SET stock_quantity=? WHERE id=?', [selectedItem[0].stock_quantity - quantity, itemID],
 
-                }
-                // Low inventory warning
-                else {
-                    console.log("INSUFFICIENT INVENTORY: \nBamazon only has ".red +
-                        selectedItem[0].stock_quantity + " " +
-                        selectedItem[0].product_name.cyan +
-                        " in stock at this moment. \nPlease make another selection or reduce your quantity.".red, "\nThank you for shopping at Bamazon!".magenta);
+                    function (err, inventory) {
+                        if (err) throw err;
+                        // Runs the prompt again, so the customer can continue shopping.
+                        successful = true
+                        showTable();
+                        // ends connection
+                        connection.end();
+                    });
 
-                    bamazon();
-                }
-            });
+            }
+            // Low inventory warning
+            else {
+                console.log("INSUFFICIENT INVENTORY: \nBamazon only has ".red +
+                    selectedItem[0].stock_quantity + " " +
+                    selectedItem[0].product_name.cyan +
+                    " in stock at this moment. \nPlease make another selection or reduce your quantity.".red, "\nThank you for shopping at Bamazon!".magenta);
+                bamazon();
+
+            }
         });
     });
-}
+};
 
